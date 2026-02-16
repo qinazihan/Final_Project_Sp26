@@ -19,7 +19,7 @@ Constraints:
 ### Local development environment (primary)
 Use this Python environment for build/debug:
 
-`/Users/floydluo/Desktop/OpenClawServer/SPACE-HAI-Agent/HAI-Agent/.venv`
+`/Users/floydluo/Desktop/OpenClawServer/SPACE-HAI-Agent/LearnLangGraph/.venv`
 
 Why local first:
 - Faster iteration

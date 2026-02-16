@@ -39,12 +39,12 @@ Why second:
 
 ## Build Order (Recommended)
 
-1. Build graph skeleton with mock outputs (local)
-2. Add real research + citations (local)
-3. Add critic + human feedback loop (local)
+1. Build **one single Python script** skeleton with mock outputs (local)
+2. Add real research + citations in the same script (local)
+3. Add critic + human feedback loop (same script)
 4. Add guardrails (round/token/query limits)
-5. Freeze stable v1
-6. Convert to Colab notebook (student-facing)
+5. Freeze stable v1 script
+6. Convert the script to Colab notebook cells (student-facing)
 7. Optional: build v2 with parallel subgraphs (`send()`)
 
 ---
@@ -178,17 +178,27 @@ Guardrail behavior:
 
 ## Local Implementation Structure
 
-Suggested files (local Python scripts):
+### v1 decision: single-file implementation
+Use one file first:
 
-- `mba_agent/state.py`
-- `mba_agent/nodes.py`
-- `mba_agent/graph.py`
-- `mba_agent/run_agent.py`
-- `mba_agent/config.py`
+- `LearnLangGraph/MBA-course/Design/mba_langgraph_v1_single_file.py`
+
+Put everything in this file:
+- state schema
+- all node functions
+- routing functions
+- graph builder + compile
+- `run_demo()` entrypoint
+- simple config block (model, rounds, query caps)
 
 Run mode:
 - script mode for reproducibility
 - optional `langgraph dev` for interactive testing
+
+### Why single file first
+- faster to debug during early design
+- easier to teach and explain in class
+- straightforward to convert into notebook cells later
 
 ---
 
@@ -213,7 +223,7 @@ Best for:
 - low-friction setup
 
 Recommendation:
-- Build with scripts + `langgraph dev`
+- Build with **one single script** + optional `langgraph dev`
 - Teach with Colab cells
 
 ---
@@ -253,7 +263,7 @@ After v1 stabilizes locally:
 
 ## MVP Checklist
 
-- [ ] Graph runs end-to-end with sequential loop
+- [ ] Single-file script runs end-to-end with sequential loop
 - [ ] Human feedback can trigger selective rerun
 - [ ] Research includes source metadata
 - [ ] Confidence labels appear in outputs

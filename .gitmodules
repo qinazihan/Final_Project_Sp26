@@ -1,3 +1,6 @@
 [submodule "langchain-academy"]
 	path = langchain-academy
 	url = https://github.com/langchain-ai/langchain-academy.git
+[submodule "HAI-Agent-Canvas"]
+	path = HAI-Agent-Canvas
+	url = https://github.com/JHU-CDHAI/HAI-Agent-Canvas.git

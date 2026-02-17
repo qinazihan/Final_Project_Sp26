@@ -3,6 +3,17 @@
 __pycache__/
 *.pyc
 .env
+env.sh
 .langgraph_api/
 mba_output_*.json
 .claude/
+
+# Chainlit session data
+.chainlit/
+chainlit.md
+
+# MBA results (session outputs)
+MBA-course/results/
+
+# Luis agent local data
+luis-agent/

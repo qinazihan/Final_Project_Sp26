@@ -1,0 +1,14 @@
+[project]
+name = "ai-research-council"
+version = "0.1.0"
+description = "Multi-Agent Research Discussion System — Gemini, GPT, Claude via OpenRouter"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=0.4",
+    "langchain-core>=0.3",
+    "langchain-openai>=0.3",
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+ai-research-council = "ai_research_council_openrouter:main"

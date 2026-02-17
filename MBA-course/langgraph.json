@@ -1,0 +1,8 @@
+{
+  "graphs": {
+    "mba_agent": "./mba_agent_v3_nb.py:graph"
+  },
+  "env": "./.env",
+  "python_version": "3.12",
+  "dependencies": ["."]
+}

@@ -45,6 +45,13 @@ Output: MBA-course/results/ (JSON + markdown report)
 # %% Setup and Imports
 import os
 import json
+
+# Load .env file (for terminal mode; LangGraph Studio loads it via langgraph.json)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+except ImportError:
+    pass
 import operator
 import textwrap
 from pathlib import Path

@@ -4,8 +4,8 @@ Run MBA Agent v4 with different model combinations (auto-approve mode).
 Saves results to results/trials/ for comparison.
 
 Usage:
-  python run_trials.py                     # run all trials
-  python run_trials.py mixed_best gemini   # run specific trials
+  python run_trials.py                        # run all trials
+  python run_trials.py mixed_best gemini      # run specific trials
 """
 import os, sys, yaml, time, shutil, subprocess
 from pathlib import Path
@@ -16,7 +16,6 @@ AGENT_SCRIPT = SCRIPT_DIR / "mba_agent_v4.py"
 RESULTS_DIR = SCRIPT_DIR / "results" / "trials"
 
 # ── Trial configurations ──
-# Each trial: name → {agent_role: model_id}
 TRIALS = {
     "baseline_gpt4o": {
         "intake":      "openai/gpt-4o",
@@ -29,18 +28,6 @@ TRIALS = {
         "researcher":  "google/gemini-3-flash-preview",
         "critic":      "anthropic/claude-sonnet-4.5",
         "synthesizer": "anthropic/claude-sonnet-4.5",
-    },
-    "all_claude": {
-        "intake":      "anthropic/claude-sonnet-4",
-        "researcher":  "anthropic/claude-sonnet-4.5",
-        "critic":      "anthropic/claude-sonnet-4.5",
-        "synthesizer": "anthropic/claude-sonnet-4.5",
-    },
-    "gpt41_deepseek": {
-        "intake":      "openai/gpt-4.1",
-        "researcher":  "deepseek/deepseek-v3.2",
-        "critic":      "openai/gpt-4.1",
-        "synthesizer": "openai/gpt-4.1",
     },
     "gemini_heavy": {
         "intake":      "google/gemini-2.0-flash-001",
@@ -57,7 +44,7 @@ def run_trial(trial_name: str, models: dict):
     print(f"  TRIAL: {trial_name}")
     print(f"{'='*80}")
     for role, model in models.items():
-        print(f"  {role:12s} → {model}")
+        print(f"  {role:12s} -> {model}")
     print()
 
     # Build temp config from original + patched models
@@ -81,10 +68,9 @@ def run_trial(trial_name: str, models: dict):
 
     t0 = time.time()
     try:
-        # Stream output live to terminal AND capture to log file
         with open(log_path, "w") as log_f:
             proc = subprocess.Popen(
-                [sys.executable, "-u", str(AGENT_SCRIPT)],  # -u = unbuffered
+                [sys.executable, "-u", str(AGENT_SCRIPT)],
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -101,9 +87,9 @@ def run_trial(trial_name: str, models: dict):
         exit_code = proc.returncode
         print(f"\n  Trial '{trial_name}' finished in {elapsed:.0f}s (exit {exit_code})")
 
-        # Move result files into trial dir
+        # Move MD + DOCX files into trial dir
         results_base = SCRIPT_DIR / "results"
-        for pattern in ["mba_v4_report_*.md", "mba_v4_report_*.docx", "mba_v4_output_*.json"]:
+        for pattern in ["mba_v4_report_*.md", "mba_v4_report_*.docx"]:
             files = sorted(results_base.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
             if files:
                 dest = trial_dir / files[0].name
@@ -150,9 +136,9 @@ def main():
     print(f"{'='*80}")
     print(f"  MBA Agent v4 — Model Trials ({len(trials)} trials)")
     print(f"{'='*80}")
-    print(f"  Results → {RESULTS_DIR}")
+    print(f"  Results -> {RESULTS_DIR}")
     print(f"  Trials:  {', '.join(trials.keys())}")
-    print(f"  Config:  {CONFIG_PATH} (read-only, never modified)")
+    print(f"  Config:  {CONFIG_PATH} (read-only)")
     print()
 
     results = []
@@ -164,15 +150,13 @@ def main():
     print(f"\n\n{'='*80}")
     print("  TRIAL SUMMARY")
     print(f"{'='*80}")
-    print(f"  {'Trial':<25} {'Time':>8}  {'Status':<6}  Models")
-    print(f"  {'-'*75}")
+    print(f"  {'Trial':<25} {'Time':>8}  {'Status':<6}")
+    print(f"  {'-'*45}")
     for r in results:
         status = "OK" if r["success"] else "FAIL"
-        models_str = ", ".join(f"{v}" for v in TRIALS[r["name"]].values())
-        print(f"  {r['name']:<25} {r['elapsed']:>7.0f}s  {status:<6}  {models_str}")
+        print(f"  {r['name']:<25} {r['elapsed']:>7.0f}s  {status:<6}")
     print(f"{'='*80}")
-    print(f"  Results: {RESULTS_DIR}")
-    print(f"  Each trial dir has: report.md, report.docx, output.json, log.txt, meta.yaml")
+    print(f"  Results: {RESULTS_DIR}/")
 
 
 if __name__ == "__main__":

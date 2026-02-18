@@ -1364,21 +1364,6 @@ if __name__ == "__main__":
     output_dir.mkdir(exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    json_path = output_dir / f"mba_v4_output_{ts}.json"
-    serializable = {}
-    for k, v in result.items():
-        if k == "messages":
-            serializable[k] = [
-                {"role": getattr(m, "type", "unknown"), "content": getattr(m, "content", str(m))}
-                for m in v
-            ]
-        elif isinstance(v, (str, int, float, bool, list, dict, type(None))):
-            serializable[k] = v
-
-    with open(json_path, "w") as f:
-        json.dump(serializable, f, indent=2, ensure_ascii=False)
-    print(f"  JSON:     {json_path}")
-
     md_path = output_dir / f"mba_v4_report_{ts}.md"
     with open(md_path, "w") as f:
         f.write(f"# MBA Strategy Report v4\n\n")
@@ -1393,63 +1378,164 @@ if __name__ == "__main__":
     # ── DOCX output ──
     try:
         from docx import Document
-        from docx.shared import Pt, Inches, RGBColor
+        from docx.shared import Pt, Inches, RGBColor, Cm, Emu
         from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.oxml.ns import qn
         import re
 
         doc = Document()
 
-        # -- Styles --
+        # -- Page margins --
+        for section in doc.sections:
+            section.top_margin = Cm(2.5)
+            section.bottom_margin = Cm(2.5)
+            section.left_margin = Cm(2.5)
+            section.right_margin = Cm(2.5)
+
+        # -- Base style --
         style = doc.styles["Normal"]
         style.font.name = "Calibri"
         style.font.size = Pt(11)
+        style.paragraph_format.space_after = Pt(6)
+        style.paragraph_format.line_spacing = 1.15
 
-        # -- Title page --
+        # -- Color palette --
+        NAVY = RGBColor(0x1B, 0x2A, 0x4A)
+        DARK_GRAY = RGBColor(0x33, 0x33, 0x33)
+        MID_GRAY = RGBColor(0x66, 0x66, 0x66)
+        LIGHT_GRAY = RGBColor(0xAA, 0xAA, 0xAA)
+        ACCENT = RGBColor(0x2E, 0x75, 0xB6)
+        WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+        TABLE_BG = RGBColor(0xF2, 0xF6, 0xFA)
+
+        # -- Customize heading styles --
+        for level, (size, color, bold) in {
+            0: (Pt(28), NAVY, True),
+            1: (Pt(22), NAVY, True),
+            2: (Pt(16), ACCENT, True),
+            3: (Pt(13), DARK_GRAY, True),
+            4: (Pt(11), MID_GRAY, True),
+        }.items():
+            h_style = doc.styles[f"Heading {level + 1}" if level > 0 else "Title"]
+            h_style.font.name = "Calibri"
+            h_style.font.size = size
+            h_style.font.color.rgb = color
+            h_style.font.bold = bold
+            if level > 0:
+                h_style.paragraph_format.space_before = Pt(18 if level <= 2 else 12)
+                h_style.paragraph_format.space_after = Pt(6)
+
+        def _add_divider(doc):
+            """Add a thin horizontal line."""
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.space_after = Pt(4)
+            pPr = p._p.get_or_add_pPr()
+            pBdr = pPr.makeelement(qn("w:pBdr"), {})
+            bottom = pBdr.makeelement(qn("w:bottom"), {
+                qn("w:val"): "single",
+                qn("w:sz"): "4",
+                qn("w:space"): "1",
+                qn("w:color"): "D0D0D0",
+            })
+            pBdr.append(bottom)
+            pPr.append(pBdr)
+
+        # ── Title page ──
+        # Spacer
+        for _ in range(4):
+            doc.add_paragraph()
+
         title = doc.add_heading("MBA Strategy Report", level=0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        subtitle = doc.add_paragraph()
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = subtitle.add_run(f"Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}")
-        run.font.size = Pt(12)
-        run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+        _add_divider(doc)
 
-        agents_para = doc.add_paragraph()
-        agents_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = agents_para.add_run(f"Models: {agents_str}")
-        run.font.size = Pt(10)
-        run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
+        query_para = doc.add_paragraph()
+        query_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = query_para.add_run(INPUT_QUERY)
+        run.font.size = Pt(14)
+        run.font.color.rgb = MID_GRAY
+        run.italic = True
+
+        doc.add_paragraph()  # spacer
+
+        # Metadata table on title page
+        meta_table = doc.add_table(rows=4, cols=2)
+        meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        meta_items = [
+            ("Generated", datetime.now().strftime("%B %d, %Y at %H:%M")),
+            ("Models", agents_str),
+            ("Topics", str(len(result.get("approved_topics", [])))),
+            ("Debate Rounds", str(MAX_DEBATE_ROUNDS)),
+        ]
+        for i, (label, value) in enumerate(meta_items):
+            cell_l = meta_table.rows[i].cells[0]
+            cell_r = meta_table.rows[i].cells[1]
+            cell_l.text = ""
+            cell_r.text = ""
+            run_l = cell_l.paragraphs[0].add_run(label)
+            run_l.font.size = Pt(10)
+            run_l.font.color.rgb = MID_GRAY
+            run_l.bold = True
+            cell_l.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            run_r = cell_r.paragraphs[0].add_run(value)
+            run_r.font.size = Pt(10)
+            run_r.font.color.rgb = DARK_GRAY
 
         doc.add_page_break()
 
-        # -- Helper: convert markdown text to docx paragraphs --
+        # ── Markdown-to-DOCX converter ──
+        def _add_formatted_text(paragraph, text):
+            """Parse inline markdown: **bold**, *italic*, [N] citations."""
+            # Split on bold and italic patterns
+            parts = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*)", text)
+            for part in parts:
+                if part.startswith("**") and part.endswith("**"):
+                    run = paragraph.add_run(part[2:-2])
+                    run.bold = True
+                elif part.startswith("*") and part.endswith("*") and not part.startswith("**"):
+                    run = paragraph.add_run(part[1:-1])
+                    run.italic = True
+                else:
+                    # Highlight [N] citation references
+                    cite_parts = re.split(r"(\[\d+\])", part)
+                    for cp in cite_parts:
+                        if re.match(r"\[\d+\]", cp):
+                            run = paragraph.add_run(cp)
+                            run.font.color.rgb = ACCENT
+                            run.font.size = Pt(9)
+                            run.bold = True
+                        else:
+                            paragraph.add_run(cp)
+
         def _md_to_docx(doc, md_text):
-            """Simple markdown-to-docx converter for headings, bold, bullets, and paragraphs."""
+            """Convert markdown text to styled DOCX paragraphs."""
             lines = md_text.split("\n")
             i = 0
             while i < len(lines):
                 line = lines[i]
                 stripped = line.strip()
 
-                # Skip empty lines
-                if not stripped:
+                if not stripped or stripped == "---":
+                    if stripped == "---":
+                        _add_divider(doc)
                     i += 1
                     continue
 
-                # Headings
-                if stripped.startswith("######"):
-                    doc.add_heading(stripped.lstrip("#").strip(), level=5)
-                elif stripped.startswith("#####"):
-                    doc.add_heading(stripped.lstrip("#").strip(), level=4)
-                elif stripped.startswith("####"):
-                    doc.add_heading(stripped.lstrip("#").strip(), level=4)
-                elif stripped.startswith("###"):
-                    doc.add_heading(stripped.lstrip("#").strip(), level=3)
-                elif stripped.startswith("##"):
-                    doc.add_heading(stripped.lstrip("#").strip(), level=2)
-                elif stripped.startswith("#"):
-                    doc.add_heading(stripped.lstrip("#").strip(), level=1)
-                # Bullet points
+                # Headings (count # prefix)
+                if stripped.startswith("#"):
+                    hashes = len(stripped) - len(stripped.lstrip("#"))
+                    level = min(hashes, 4)
+                    heading_text = stripped.lstrip("#").strip()
+                    doc.add_heading(heading_text, level=level)
+                # Sub-bullets (indented)
+                elif re.match(r"^\s{2,}[-*]\s", line):
+                    text = re.sub(r"^\s+[-*]\s", "", line)
+                    p = doc.add_paragraph(style="List Bullet 2")
+                    _add_formatted_text(p, text)
+                # Top-level bullets
                 elif stripped.startswith("- ") or stripped.startswith("* "):
                     text = stripped[2:]
                     p = doc.add_paragraph(style="List Bullet")
@@ -1466,27 +1552,25 @@ if __name__ == "__main__":
 
                 i += 1
 
-        def _add_formatted_text(paragraph, text):
-            """Add text with bold (**text**) formatting support."""
-            parts = re.split(r"(\*\*[^*]+\*\*)", text)
-            for part in parts:
-                if part.startswith("**") and part.endswith("**"):
-                    run = paragraph.add_run(part[2:-2])
-                    run.bold = True
-                else:
-                    paragraph.add_run(part)
-
-        # -- Recommendation Report --
+        # ── Recommendation Report ──
         recommendation = result.get("recommendation", "")
         if recommendation:
             _md_to_docx(doc, recommendation)
 
         doc.add_page_break()
 
-        # -- Action Plan --
+        # ── Action Plan ──
         action_plan = result.get("action_plan", "")
         if action_plan:
             _md_to_docx(doc, action_plan)
+
+        # ── Footer-style metadata ──
+        _add_divider(doc)
+        footer = doc.add_paragraph()
+        footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = footer.add_run("Generated by MBA Strategy Agent v4")
+        run.font.size = Pt(8)
+        run.font.color.rgb = LIGHT_GRAY
 
         docx_path = output_dir / f"mba_v4_report_{ts}.docx"
         doc.save(str(docx_path))

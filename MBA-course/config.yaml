@@ -40,11 +40,11 @@ agents:
 
 # Agent behavior
 auto_approve: false
-max_clarify_rounds: 10 # human gate 1
+max_clarify_rounds: 2 # human gate 1
 max_research_topics: 4
 
-max_web_search_ct: 50
-max_debate_rounds: 20 #proposal vs critic
+max_web_search_ct: 10
+max_debate_rounds: 2 #proposal vs critic
 max_human_revision_on_proposal: 2 # human gate 2
 
 max_human_revision_on_plan: 2 # human gate 3

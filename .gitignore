@@ -12,6 +12,12 @@ mba_output_*.json
 .chainlit/
 chainlit.md
 
+# MBA Colab notebook (lives in Final_Project_Sp26 repo)
+MBA-course/mba_agent_v4_colab.ipynb
+
+# MBA config (generated per-session)
+MBA-course/config.yaml
+
 # MBA results (session outputs)
 MBA-course/results/
 

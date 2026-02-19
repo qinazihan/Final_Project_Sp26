@@ -15,5 +15,8 @@ chainlit.md
 # MBA results (session outputs)
 MBA-course/results/
 
+# MBA design files
+MBA-course/Design/
+
 # Luis agent local data
 luis-agent/

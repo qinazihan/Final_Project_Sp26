@@ -38,6 +38,8 @@ Output: MBA-course/results/ (JSON + markdown report)
 
 # %% Setup and Imports
 import os
+import sys
+import time
 import json
 import operator
 import textwrap
@@ -1306,11 +1308,38 @@ if __name__ == "__main__":
     from langgraph.checkpoint.memory import MemorySaver
     from langgraph.types import Command
 
+    # ── Timestamped output directory ──
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = Path(__file__).resolve().parent / "results" / ts
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Tee stdout to log.txt ──
+    class _TeeWriter:
+        """Write to both the original stdout and a log file."""
+        def __init__(self, log_path, orig_stdout):
+            self._log = open(log_path, "w")
+            self._orig = orig_stdout
+        def write(self, s):
+            self._orig.write(s)
+            self._log.write(s)
+        def flush(self):
+            self._orig.flush()
+            self._log.flush()
+        def close(self):
+            self._log.close()
+
+    _orig_stdout = sys.stdout
+    _tee = _TeeWriter(output_dir / "log.txt", _orig_stdout)
+    sys.stdout = _tee
+
+    t0 = time.time()
+
     print("=" * 80)
     print("RUNNING MBA STRATEGY AGENT v4 (terminal mode)")
     print("=" * 80)
     print(f"  Query:        {INPUT_QUERY}")
     print(f"  Auto-approve: {AUTO_APPROVE}")
+    print(f"  Output dir:   {output_dir}")
     print()
     print("  Agents:")
     for name, cfg in AGENTS.items():
@@ -1349,6 +1378,8 @@ if __name__ == "__main__":
         # Resume graph from interrupt
         result = agent.invoke(Command(resume=feedback), config)
 
+    elapsed = time.time() - t0
+
     # ── Display Results ──
     print("\n" + "=" * 80)
     print("AGENT COMPLETE")
@@ -1360,15 +1391,12 @@ if __name__ == "__main__":
     print("SAVING RESULTS")
     print("=" * 80)
 
-    output_dir = Path(__file__).resolve().parent / "results"
-    output_dir.mkdir(exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    agents_str = ', '.join(f'{k}={v["model"]}' for k, v in AGENTS.items())
 
     md_path = output_dir / f"mba_v4_report_{ts}.md"
     with open(md_path, "w") as f:
         f.write(f"# MBA Strategy Report v4\n\n")
         f.write(f"**Generated:** {datetime.now().isoformat()}\n")
-        agents_str = ', '.join(f'{k}={v["model"]}' for k, v in AGENTS.items())
         f.write(f"**Agents:** {agents_str}\n\n---\n\n")
         f.write(result.get("recommendation", ""))
         f.write(f"\n\n---\n\n")
@@ -1581,6 +1609,21 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  [WARNING] DOCX generation failed: {e}")
 
+    # ── meta.yaml ──
+    with open(output_dir / "meta.yaml", "w") as f:
+        yaml.dump({
+            "timestamp": datetime.now().isoformat(),
+            "input_query": INPUT_QUERY,
+            "auto_approve": AUTO_APPROVE,
+            "models": {k: v["model"] for k, v in AGENTS.items()},
+            "elapsed_seconds": round(elapsed, 1),
+        }, f, default_flow_style=False, sort_keys=False)
+    print(f"  Meta:     {output_dir / 'meta.yaml'}")
+
     print("=" * 80)
     print("COMPLETE")
     print("=" * 80)
+
+    # ── Restore stdout & close log ──
+    sys.stdout = _orig_stdout
+    _tee.close()
